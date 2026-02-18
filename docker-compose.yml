@@ -1,20 +1,40 @@
 services:
   db:
     image: postgres:15
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_DB: ticket_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
-    #... environment variables...
 
   backend:
-    build:./backend
-    # The command runs migrations THEN starts the server
+    build: .
+    container_name: django_backend
     command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-    #... volumes and ports...
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      DB_NAME: ticket_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: db
+      DB_PORT: 5432
+
+volumes:
+  postgres_data:
